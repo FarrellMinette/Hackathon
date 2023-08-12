@@ -1,0 +1,162 @@
+[
+      {
+        "mode": "NULLABLE",
+        "name": "partition_date",
+        "type": "DATE"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "id",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "vehicleid",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "coordinate_latitude",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "coordinate_longitude",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "timestamp",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "heading",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "ignitionState",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "odometer",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "speed",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "vext",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "event_description",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "linear_g",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "lateral_g",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "terminal_id",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "recieved_ts",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "road_speed",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gps_fix_type",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "gps_accuracy",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "vgsm",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "x_accel",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "y_accel",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "z_accel",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "altitude",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SP_CODE",
+        "type": "FLOAT"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "SP_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "MP_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "MN_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "DC_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "PR_NAME",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "created_ts",
+        "type": "TIMESTAMP"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "country_name",
+        "type": "STRING"
+      }
+    ]
