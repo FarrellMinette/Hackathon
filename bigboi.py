@@ -243,9 +243,24 @@ def update_missing_cols(df, missing_df):
 
     return new_df
         
+def make_braking_collumn(df):
+    new_df = df.copy()
+    new_df['braking'] = 'normal'
+    # Iterate through the rows using itertuples() for better performance
+    for row in new_df.itertuples(index=True):
+        index = row.Index
+        emergency_braking = row.emergency_braking
+        harsh_braking = row.harsh_braking
+        
+        # Determine the braking type based on the conditions
+        if harsh_braking > emergency_braking:
+            new_df.at[index, 'braking'] = 'harsh'
+        elif harsh_braking < emergency_braking:
+            new_df.at[index, 'braking'] = 'emergency'
+    
+    return new_df
 
 if __name__== "__main__":
-    df = pd.read_csv('./our_data/drivers.csv')
-    missing_df = return_missing(df)
-    new_df = update_missing_cols(df, missing_df)
-    new_df.to_csv("new_stops.csv", index=False)
+    df = pd.read_csv('./our_data/new_stops.csv')
+    new_df = make_braking_collumn(df)
+    new_df.to_csv('./our_data/stops_with_braking.csv', index=False)
