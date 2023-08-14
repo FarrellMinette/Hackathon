@@ -61,6 +61,7 @@ def alter_driver_claims_drop():
 
 def insert_over_speed_limit():
     table_names = select_table_names()
+    run_sql(f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS overSpeed INT64""")
     for table_name in table_names:
         results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
                             SET overSpeed = (
@@ -71,7 +72,78 @@ def insert_over_speed_limit():
                             WHERE vehicleid = {table_name};
                         """)
 
+def insert_gps_lost_count():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS gps_lost_count INT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET gps_lost_count = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE event_description='GPS_Lost'
+                            )
+                            WHERE vehicleid = {table_name};
+                        """
+        results = run_sql(sql)  
+
+def insert_telematics_off_count():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS telematics_off_count INT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET telematics_off_count = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE event_description='Power OFF'
+                            )
+                            WHERE vehicleid = {table_name};
+                        """
+        results = run_sql(sql)       
+
+def insert_normal_braking():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS normal_braking INT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET normal_braking = (
+                            select count(linear_g) from `{project_id}.{data}.{table_name}` WHERE (linear_g < 0.1 AND linear_g > -0.1)
+                            )
+                            WHERE vehicleid = {table_name};
+                        """
+        results = run_sql(sql)     
+
+def insert_harsh_braking():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS harsh_braking INT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET harsh_braking = (
+                            select count(linear_g) from `{project_id}.{data}.{table_name}` WHERE ((linear_g < 0.3 AND linear_g > -0.3) AND NOT (linear_g < 0.1 AND linear_g > -0.1))
+                            )
+                            WHERE vehicleid = {table_name};
+                        """
+        results = run_sql(sql)     
+
+def insert_emergency_braking():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS emergency_braking INT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET emergency_braking = (
+                            select count(linear_g) from `{project_id}.{data}.{table_name}` WHERE NOT (linear_g < 0.5 AND linear_g > -0.5)
+                            )
+                            WHERE vehicleid = {table_name};
+                        """
+        results = run_sql(sql)                
+
 def insert_claims():
+    run_sql(f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS number_of_claims INT64""")
+    run_sql(f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS total_claims_cost STRING""")
     sql = f"""UPDATE `{project_id}.{tables}.drivers` AS driver
             SET
                 driver.number_of_claims = claims.number_of_claims,
@@ -81,10 +153,51 @@ def insert_claims():
             """
     run_sql(sql)
 
+def insert_idle_time():
+    table_names = select_table_names()
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS idle_ratio FLOAT64;"""
+    run_sql(sql)
+    for table_name in table_names:
+        sql = f"""
+                SELECT idle / total as idle_ratio
+                FROM (
+                    SELECT 
+                        SUM(CASE WHEN event_description LIKE 'Idle%' THEN 1 ELSE 0 END) AS idle,
+                        COUNT(*) AS total
+                    FROM `{project_id}.{data}.{table_name}`
+                ) subquery
+                """
+        results = run_sql(sql)  
+
+def test():
+    sql = f"""Select * from {project_id}.{tables}.drivers"""
+    results = run_sql(sql)
+    for result in results:
+        print(result)
+
 # create_driver()
 # insert_vehicleid()
-# alter_driver_overspeed()
 # insert_over_speed_limit()
-# alter_driver_claims_drop()
-# alter_driver_claims()
 # insert_claims()
+# test()
+# insert_gps_lost_count()
+
+# TODO:
+# insert_telematics_off_count()
+# insert_normal_braking()
+# insert_harsh_braking()
+# insert_emergency_braking()
+insert_idle_time()
+
+
+# sql = f"""ALTER TABLE {project_id}.{tables}.drivers
+# RENAME COLUMN normal_breaking TO normal_braking;"""
+# sql += f"""ALTER TABLE {project_id}.{tables}.drivers
+# RENAME COLUMN harsh_breaking TO harsh_braking;"""
+# sql += f"""ALTER TABLE {project_id}.{tables}.drivers
+# RENAME COLUMN emergency_breaking TO emergency_braking;"""
+# run_sql(sql)
+
+# sql = f"""Alter table {project_id}.{tables}.drivers DROP COLUMN total_claims_cost;"""
+# sql = f"""Alter table {project_id}.{tables}.drivers DROP COLUMN harsh_braking;"""
+# run_sql(sql)
