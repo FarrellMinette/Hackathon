@@ -1,0 +1,201 @@
+---
+title: "distributions_of_final_data"
+output: html_document
+date: "2023-08-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load data and libs}
+library(MASS)
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(gridExtra)
+library(caret)
+data <- read.csv('./our_data/new_stops.csv')
+```
+
+# Looking at the distributions of the final drivers dataset 
+### Average distance per stop
+```{r average distance per stop}
+data %>% ggplot(aes(x=average_distance_per_stop)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density of Average Distance per Stop")
+```
+
+Super NB: look at that weird spike in the negatives. Should investigate.
+Let me look at it as a boxplot:
+
+```{r average distance per stop box}
+data %>% ggplot(aes(x=average_distance_per_stop)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Density of Average Distance per Stop Boxplot")
+```
+
+Let's filter out that bottom neg values:
+```{r average distance per stop box filter}
+plot1 <- data %>% filter(average_distance_per_stop > 0) %>% ggplot(aes(x=average_distance_per_stop)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot of Average Distance", x = "avg distance per stop")
+plot2 <- data %>% filter(average_distance_per_stop > 0) %>% ggplot(aes(x=average_distance_per_stop)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density of Average Distance", x = "avg distance per stop")
+grid.arrange(plot1, plot2, ncol = 2, widths = c(3, 3))
+```
+
+Now that makes a lot more sense wow.
+
+### Average number of Stops per day
+```{r average nmr of stops per day}
+data %>% ggplot(aes(x=average_number_of_stops_per_day)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density of Average Number of Stops per day", x = "avg number of stops per day")
+```
+
+Also NB: shoud look at that weird spike near 800 by making a boxplot of this dude
+
+```{r average nmr of stops per day box}
+data %>% ggplot(aes(x=average_number_of_stops_per_day)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot of Average Number of Stops per day", x = "avg number of stops per day")
+```
+
+Ooh la, la. Look, that is a SINGLE outlier near 800. Let's remove that dude as well. However, we should 100% investigate !!
+
+## Looking at the average nmr of stops per day without outliers
+```{r average nmr of stops per day filtered box}
+plot1 <- data %>% filter(average_number_of_stops_per_day < 700) %>% ggplot(aes(x=average_number_of_stops_per_day)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot", x = "avg number of stops per day")
+plot2 <-  data %>% filter(average_number_of_stops_per_day < 700) %>% ggplot(aes(x=average_number_of_stops_per_day)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density", x = "avg number of stops per day")
+
+grid.arrange(plot1, plot2, ncol = 2, widths = c(3, 3))
+
+```
+
+Now, those look tons better.
+
+### Looking at the correlation between some things
+```{r freq over speed vs total claims cost 2 plot}
+data %>% filter(average_number_of_stops_per_day <700)  %>% ggplot(aes(x = average_number_of_stops_per_day, y = total_claims_cost)) + geom_jitter(aes(color=bad_driver), alpha=0.8) + labs(title="Average nmr of stops per day vs Total Claims Cost", x= "Average nmr of stops per day", y= "Total Claims Cost") + geom_smooth(color = "grey")
+data %>% filter(average_number_of_stops_per_day <700)  %>% ggplot(aes(x = average_number_of_stops_per_day, y = number_of_claims)) + geom_jitter(aes(color= bad_driver), alpha=0.8) + labs(title="Average nmr of stops per day vs Number of Claims", x= "Average nmr of stops per day", y= "Number of Claims") + geom_smooth(color = "grey")
+```
+
+### Total claims cost
+
+```{r total claims cost}
+plot1 <- data %>% ggplot(aes(x=total_claims_cost)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density of Total claims Cost", x = "Total claims Cost (R)")
+plot2 <- data %>% ggplot(aes(x=total_claims_cost)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot of Total claims Cost", x = "Total claims Cost (R)")
+
+grid.arrange(plot1, plot2, ncol = 2, widths = c(3, 3))
+```
+
+Let us inspect that Boxplot a little more. I feel like the real density lies beyond all those 0's.
+
+```{r total claims cost filtered}
+data %>% filter(total_claims_cost > 0) %>% ggplot(aes(x=total_claims_cost)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot of Total claims Cost", x = "Total claims Cost (R)")
+```
+
+A-Hah! Now that seems to look like a density. Look at that one dude wth R4 0000 +, that is sort of hectic. 
+
+### Over speed limit
+
+```{r overspeed}
+plot1 <- data %>% ggplot(aes(x=overSpeed)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density of Over Speed", x = "Over Speed")
+plot2 <- data %>% ggplot(aes(x=overSpeed)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot of Over Speed", x = "Over Speed")
+
+grid.arrange(plot1, plot2, ncol = 2, widths = c(3, 3))
+```
+
+We should probably go look at those guys that have 9000x over the speed limit
+
+```{r freq over speed vs total claims cost}
+data %>% ggplot(aes(x = overSpeed, y = total_claims_cost)) + geom_jitter(color= "blue", alpha=0.8) + labs(title="Over Speed freq vs Total Claims Cost", x= "Times over speed limit", y= "Total Claims Cost") + geom_smooth(color = "grey")
+```
+
+Ok, but those total_claims = 0 are annoying things. Let's filter them out. 
+
+```{r freq over speed vs total claims cost filter}
+data %>% filter(total_claims_cost > 0) %>% ggplot(aes(x = overSpeed, y = total_claims_cost)) + geom_jitter(color= "blue", alpha=0.8) + labs(title="Over Speed freq vs Total Claims Cost", x= "Times over speed limit", y= "Total Claims Cost") + geom_smooth(color = "grey")
+```
+
+Ok, this is still weird. I don't think this actually has a proper effect. 
+
+## Normal Braking 
+
+```{r normal braking}
+plot11 <- data %>% ggplot(aes(x=normal_braking)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density Normal Braking", x = "Normal Braking")
+plot12 <- data %>% ggplot(aes(x=normal_braking)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot Normal Braking", x = "Normal Braking")
+```
+
+## Emergency Braking 
+```{r emergency braking}
+plot21 <- data %>% ggplot(aes(x=emergency_braking)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density Emergency Braking", x = "Emergency Braking")
+plot22 <- data %>% ggplot(aes(x=emergency_braking)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot Emergency Braking", x = "Emergency Braking")
+```
+## Harsh Braking 
+```{r harsh braking}
+plot31 <- data %>% ggplot(aes(x=harsh_braking)) + geom_density(fill="lightblue", color="lightblue") + labs(title="Density Harsh Braking", x = "Harsh Braking")
+plot32 <- data %>% ggplot(aes(x=harsh_braking)) + geom_boxplot(fill="lightblue", color="black") + labs(title="Boxplot Harsh Braking", x = "Harsh Braking")
+```
+
+```{r arrange plots}
+grid.arrange(plot11, plot21,plot31, ncol = 3)
+grid.arrange(plot12, plot22,plot32, ncol = 3)
+```
+
+### Some speculative plotting
+
+1. Relationship between overspeed and nmr stops 
+(Surely??)
+
+```{r relationship between overspeed and nmr stops}
+data %>% ggplot(aes(x=overSpeed, y=average_number_of_stops_per_day, color=bad_driver)) + geom_jitter(alpha=0.8)  + labs(title="Relationship between overspeed and Number of Stops", x= "Frequency of going over the Speed Limit", y="Average number of stops per day")
+```
+
+Ai, that outlier again. 
+
+```{r relationship between overspeed and nmr stops no outlier}
+data %>% filter(average_number_of_stops_per_day < 700) %>% ggplot(aes(x=overSpeed, y=average_number_of_stops_per_day, color=bad_driver)) + geom_jitter(alpha=0.8)  + labs(title="Relationship between overspeed and Number of Stops", x= "Frequency of going over the Speed Limit", y="Average number of stops per day")
+```
+
+Wow, ok. Literally no correlation. Whoops.
+
+## Municipalities
+```{r muni}
+muni <- read.csv('./our_data/muni.csv') 
+munic <- muni %>% select(Municipality) %>% unique() %>% unlist()
+muni_data <- muni %>% group_by(Municipality) %>% summarise(
+  "Avg nmr Stops" = mean(average_number_of_stops_per_day),
+  "Avg dist per Stop" = mean(average_distance_per_stop), 
+  "Avg claim cost" = mean(total_claims_cost),
+  "Avg nmr claims" = mean(number_of_claims),
+  "Avg times OverSpeed"  = mean(overSpeed)
+)
+```
+
+Looking at their claim costs
+
+```{r muni claim costs}
+muni_data %>% filter(`Avg claim cost` >0) %>% filter(`Avg dist per Stop` >0) %>% ggplot(aes(color=Municipality, y=`Avg claim cost`, x = `Avg dist per Stop`)) + geom_smooth(color="grey")+ geom_jitter( alpha=0.8) +  geom_text(aes(x = 1100, y = 4e+05, label = "!!Maqwatini is weird"), color = "red")
+
+
+```
+```{r cut data up}
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(muni$bad_driver, p = 0.8, list = FALSE)
+train_data <- data[train_index, ]
+test_data <- data[-train_index, ]
+```
+
+```{r encoding muni}
+encoded_train_data <- as.data.frame(predict(dummyVars(~., train_data), newdata = train_data))
+encoded_test_data <- as.data.frame(predict(dummyVars(~., train_data), newdata = test_data))
+
+encoded_train_data <- encoded_train_data[, -which(names(encoded_train_data) == "bad_driverFalse")]
+encoded_test_data <- encoded_test_data[, -which(names(encoded_test_data) == "bad_driverFalse")]
+
+```
+
+```{r lda on muni}
+lda_model <- lda(bad_driverTrue ~ ., data = encoded_train_data)
+
+# Use the trained LDA model to predict the class labels for the testing set
+predicted_class_labels <- predict(lda_model, newdata = encoded_test_data)
+
+# Extract the predicted class labels
+predicted_labels <- predicted_class_labels$class
+
+accuracy <- sum(predicted_labels == encoded_test_data$bad_driver) / length(encoded_test_data$bad_driver)
+print(accuracy)
+```
+

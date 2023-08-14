@@ -153,51 +153,29 @@ def insert_claims():
             """
     run_sql(sql)
 
-def insert_idle_time():
+def insert_classified_time_of_day():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers` ADD COLUMN IF NOT EXISTS dangerousTimes INT64""")
     table_names = select_table_names()
-    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS idle_ratio FLOAT64;"""
-    run_sql(sql)
     for table_name in table_names:
-        sql = f"""
-                SELECT idle / total as idle_ratio
-                FROM (
-                    SELECT 
-                        SUM(CASE WHEN event_description LIKE 'Idle%' THEN 1 ELSE 0 END) AS idle,
-                        COUNT(*) AS total
-                    FROM `{project_id}.{data}.{table_name}`
-                ) subquery
-                """
-        results = run_sql(sql)  
-
-def test():
-    sql = f"""Select * from {project_id}.{tables}.drivers"""
-    results = run_sql(sql)
-    for result in results:
-        print(result)
-
-# create_driver()
-# insert_vehicleid()
-# insert_over_speed_limit()
-# insert_claims()
-# test()
-# insert_gps_lost_count()
-
-# TODO:
-# insert_telematics_off_count()
-# insert_normal_braking()
-# insert_harsh_braking()
-# insert_emergency_braking()
-insert_idle_time()
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET dangerousTimes = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE EXTRACT(HOUR FROM timestamp) >= 0 
+                            AND EXTRACT(HOUR FROM timestamp) < 4
+                            )
+                            WHERE vehicleid = {table_name};
+                        """)
+    # Print the query results
+        for row in results:
+            print("Row:", row)
 
 
-# sql = f"""ALTER TABLE {project_id}.{tables}.drivers
-# RENAME COLUMN normal_breaking TO normal_braking;"""
-# sql += f"""ALTER TABLE {project_id}.{tables}.drivers
-# RENAME COLUMN harsh_breaking TO harsh_braking;"""
-# sql += f"""ALTER TABLE {project_id}.{tables}.drivers
-# RENAME COLUMN emergency_breaking TO emergency_braking;"""
-# run_sql(sql)
-
-# sql = f"""Alter table {project_id}.{tables}.drivers DROP COLUMN total_claims_cost;"""
-# sql = f"""Alter table {project_id}.{tables}.drivers DROP COLUMN harsh_braking;"""
-# run_sql(sql)
+create_driver()
+insert_vehicleid()
+alter_driver_overspeed()
+insert_over_speed_limit()
+alter_driver_claims_drop()
+alter_driver_claims()
+insert_claims()
+insert_classified_time_of_day()

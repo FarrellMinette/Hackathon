@@ -1,0 +1,63 @@
+---
+title: "DataExploration"
+output: html_document
+date: "2023-08-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(dplyr)
+library(tidyverse)
+```
+
+## Looking at the Claims Data to identify the best and worst drivers
+
+```{r load data}
+claims <- read.csv('claims_data.csv')
+summary(claims)
+str(claims)
+```
+```{r changing char to numeric}
+claims$total.claims.cost <- as.numeric(claims$total.claims.cost, errors = "coerce")
+str(claims)
+missing_summary <- claims %>%
+  summarise_all(~ mean(is.na(.)) * 100) %>%
+  gather(variable, missing_percentage)
+print(missing_summary)
+head(claims)
+```
+```{r looking at distributions}
+ggplot(claims, aes(x = number.of.claims)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", color = "black") +
+  labs(x = "Number of Claims", y = "Frequency", title = "Distribution of Number of Claims")
+claims %>%   mutate(total.claims.cost = ifelse(is.na(total.claims.cost), 0, total.claims.cost)) %>%
+ggplot() +
+  geom_density(aes(x = total.claims.cost),fill = "lightblue", color = "black") + 
+  labs(x = "Total claims cost", y = "Frequency", title = "Distribution of Claims cost")
+```
+```{r claims amount vs claims number}
+claims %>%   mutate(total.claims.cost = ifelse(is.na(total.claims.cost), 0, total.claims.cost)) %>%
+ggplot() +
+  geom_jitter(aes(x= number.of.claims,y = total.claims.cost),color = "blue") + 
+  labs(x = "Total claims nmr", y = "Total claims cost", title = "Distribution of Claims cost vs nmr (NA now 0)")
+
+claims %>%
+ggplot() +
+  geom_jitter(aes(x= number.of.claims,y = total.claims.cost),color = "red") + 
+  labs(x = "Total claims nmr", y = "Total claims cost", title = "Distribution of Claims cost vs nmr (NA left out)")
+```
+
+## Looking at vehicle with most claims
+
+``` {r vehicle with most claims}
+most_claims <- read.csv("telematics_data/final/92624443.csv")
+summary(most_claims)
+str(most_claims)
+```
+
+```{r look at sus driver}
+sus_driver <- read.csv('telematics_data/final/203444726.csv')
+odometer <- sus_driver %>% select(odometer) %>% filter(!is.na(.))
+
+```
