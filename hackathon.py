@@ -81,10 +81,29 @@ def insert_claims():
             """
     run_sql(sql)
 
-# create_driver()
-# insert_vehicleid()
-# alter_driver_overspeed()
-# insert_over_speed_limit()
-# alter_driver_claims_drop()
-# alter_driver_claims()
-# insert_claims()
+def insert_classified_time_of_day():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers` ADD COLUMN IF NOT EXISTS dangerousTimes INT64""")
+    table_names = select_table_names()
+    for table_name in table_names:
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET dangerousTimes = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE EXTRACT(HOUR FROM timestamp) >= 0 
+                            AND EXTRACT(HOUR FROM timestamp) < 4
+                            )
+                            WHERE vehicleid = {table_name};
+                        """)
+    # Print the query results
+        for row in results:
+            print("Row:", row)
+
+
+create_driver()
+insert_vehicleid()
+alter_driver_overspeed()
+insert_over_speed_limit()
+alter_driver_claims_drop()
+alter_driver_claims()
+insert_claims()
+insert_classified_time_of_day()
