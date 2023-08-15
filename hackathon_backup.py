@@ -16,6 +16,12 @@ def run_sql(sql):
     result = query_job.result()
     return result
 
+def test():
+    sql = f"""Select * from {project_id}.{tables}.driver_backup"""
+    results = run_sql(sql)
+    for result in results:
+        print(result)
+
 ## Create the 'driver_backup' table
 def create_driver():
     sql_create_driver_table = f"""
@@ -30,7 +36,7 @@ def create_driver():
 ## Select all the vehicle ids and store in table_names
 def select_table_names():
     result = run_sql(f"""SELECT table_id FROM `{project_id}.{data}.__TABLES__` """)
-    table_names = [row.table_id for row in result][:-2]
+    table_names = [row.table_id for row in result][:-3]
     return table_names
 
 ## Add vehicle ids to the driver_backup table in hackathon_tables 
@@ -135,12 +141,12 @@ def insert_emergency_braking():
 
 def insert_critical_braking():
     table_names = select_table_names()
-    sql = f"""Alter table {project_id}.{tables}.driver_backup ADD COLUMN IF NOT EXISTS critical_braking INT64;"""
+    sql = f"""Alter table {project_id}.{tables}.drivers ADD COLUMN IF NOT EXISTS CriticalBraking INT64;"""
     run_sql(sql)
     for table_name in table_names:
-        sql = f"""UPDATE `{project_id}.{tables}.driver_backup`
-                            SET critical_braking = (
-                            select count(linear_g) from `{project_id}.{data}.{table_name}` WHERE NOT (linear_g < 0.5 AND linear_g > -0.5)
+        sql = f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET CriticalBraking = (
+                            select count(linear_g) from `{project_id}.{data}.{table_name}` WHERE (linear_g > 0.5) OR (linear_g < -0.5)
                             )
                             WHERE vehicleid = {table_name};
                         """
@@ -158,18 +164,6 @@ def insert_corner_speeding():
                             AND event_description ='Corner'
                             )
                             WHERE vehicleid = {table_name};""")      
-
-def insert_claims():
-    run_sql(f"""Alter table {project_id}.{tables}.driver_backup ADD COLUMN IF NOT EXISTS number_of_claims INT64""")
-    run_sql(f"""Alter table {project_id}.{tables}.driver_backup ADD COLUMN IF NOT EXISTS total_claims_cost FLOAT64""")
-    sql = f"""UPDATE `{project_id}.{tables}.driver_backup` AS driver
-            SET
-                driver.number_of_claims = claims.number_of_claims,
-                driver.total_claims_cost = claims.total_claims_cost
-            FROM `{project_id}.{data}.claims_data` AS claims
-            WHERE driver.vehicleid = claims.vehicleid
-            """
-    run_sql(sql)
 
 def insert_idle_time():
     table_names = select_table_names()
@@ -191,27 +185,11 @@ def insert_idle_time():
                 """
         results = run_sql(sql)  
 
-def test():
-    sql = f"""Select * from {project_id}.{tables}.driver_backup"""
-    results = run_sql(sql)
-    for result in results:
-        print(result)
-
-def insert_claims():
-    sql = f"""ALTER TABLE `{project_id}.{tables}.driver_backup`
-            ADD COLUMN IF NOT EXISTS number_of_claims INT64,
-            ADD COLUMN IF NOT EXISTS total_claims_cost FLOAT64;
-
-            UPDATE `{project_id}.{tables}.driver_backup` AS driver
-            SET driver.number_of_claims = claims.number_of_claims,
-                driver.total_claims_cost = CAST(claims.total_claims_cost AS FLOAT64)
-            FROM `hackhathon_data.claims_data_cleaned` AS claims
-            WHERE driver.vehicleid = claims.vehicleid;
-            """
-    run_sql(sql)
-
 def insert_average_distance_stops():
-    sql = f"""update `hackathon_tables.driver_backup` as driver
+    sql = f"""alter table `hackathon_tables.driver_backup` add column if not exists bad_driver BOOL;
+                alter table `hackathon_tables.driver_backup` add column if not exists average_distance_per_stop FLOAT64;
+                alter table `hackathon_tables.driver_backup` add column if not exists average_number_of_stops_per_day FLOAT64;
+            update `hackathon_tables.driver_backup` as driver
             set driver.bad_driver = updated.bad_driver,
             driver.average_distance_per_stop = updated.average_distance_per_stop,
             driver. average_number_of_stops_per_day = updated.average_number_of_stops_per_day
@@ -219,17 +197,69 @@ def insert_average_distance_stops():
             where driver.vehicleid=updated.vehicleid"""
     run_sql(sql)
 
+def insert_classified_time_of_day():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers` ADD COLUMN IF NOT EXISTS dangerousTimes INT64""")
+    table_names = select_table_names()
+    for table_name in table_names:
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET dangerousTimes = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE EXTRACT(HOUR FROM timestamp) >= 0 
+                            AND EXTRACT(HOUR FROM timestamp) < 4
+                            )
+                            WHERE vehicleid = {table_name};
+                        """)
+    # Print the query results
+        for row in results:
+            print("Row:", row)
+
+def insert_classified_area():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers` ADD COLUMN IF NOT EXISTS DangerousAreas INT64""")
+    table_names = select_table_names()
+    for table_name in table_names:
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET DangerousAreas = (
+                            SELECT COUNT(*)
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE MP_NAME IN ('Nyanga', 'Khayelitsha', 'Delft', 'Mitchells Plain', 'Langa', 'Gugulethu', 'Manenberg', 'Bishop Lavis', 'Hanover park')
+                            )
+                            WHERE vehicleid = {table_name};
+                        """)
+
+# print("create driver")
 # create_driver()
+# print("vehicle id")
 # insert_vehicleid()
+# print("over speed")
 # insert_over_speed_limit()
-
-# TODO:
-# insert_corner_speeding()
-
+# print("gps lost")
 # insert_gps_lost_count()
+# print("telematics off")
 # insert_telematics_off_count()
+# print("normal")
 # insert_normal_braking()
+# print("harsh")
 # insert_harsh_braking()
+# print("emergency")
 # insert_emergency_braking()
+# print("critical")
 # insert_critical_braking()
+# print("idle")
 # insert_idle_time()
+# print("claims")
+# insert_average_distance_stops()
+# print("time of day")
+# insert_classified_time_of_day()
+        
+
+# run_sql(f"""alter table `hackathon-1123-395609.hackathon_tables.drivers` drop column CriticalBraking""")
+# print("critical")
+# insert_critical_braking()
+# insert_classified_area()
+
+def test():
+    sql = f"""Select * from {project_id}.{tables}.driver_backup"""
+    results = run_sql(sql)
+    for result in results:
+        print(result)

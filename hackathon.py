@@ -30,7 +30,7 @@ def create_driver():
 ## Select all the vehicle ids and store in table_names
 def select_table_names():
     result = run_sql(f"""SELECT table_id FROM `{project_id}.{data}.__TABLES__` """)
-    table_names = [row.table_id for row in result][:-2]
+    table_names = [row.table_id for row in result][:-3]
     return table_names
 
 ## Add vehicle ids to the drivers table in hackathon_tables 
@@ -171,11 +171,11 @@ def insert_classified_time_of_day():
             print("Row:", row)
 
 
-create_driver()
-insert_vehicleid()
-alter_driver_overspeed()
-insert_over_speed_limit()
-alter_driver_claims_drop()
-alter_driver_claims()
-insert_claims()
-insert_classified_time_of_day()
+# create_driver()
+# insert_vehicleid()
+# alter_driver_overspeed()
+# insert_over_speed_limit()
+# alter_driver_claims_drop()
+# alter_driver_claims()
+# insert_claims()
+# insert_classified_time_of_day()
