@@ -13,5 +13,3 @@ do
     # Load the CSV file into the table using the schema from schema.json
     bq load --source_format=CSV --skip_leading_rows=1 --schema=schema.json $full_table_name "$csv_file"
 done
-
-# bad boy: 140138339.csv
