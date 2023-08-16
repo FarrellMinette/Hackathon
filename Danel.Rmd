@@ -1,0 +1,306 @@
+---
+title: "ExloreToFix"
+output: html_document
+date: "2023-08-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libs, include=FALSE}
+library(MASS)
+library(knitr)
+library(dplyr)
+library(tidyverse)
+library(gridExtra)
+library(caret)
+library(mclust)
+```
+```{r load data,  include=FALSE}
+stops <- read.csv('./our_data/new_stops.csv')
+drivers <- read.csv('./our_data/drivers_backup.csv')
+muni <- read.csv('./our_data/muni.csv')
+```
+# Looking at the data to go check for mistakes
+```{r looking at muni as a whole}
+summary(muni)
+```
+```{r fixing column types}
+muni$bad_driver <- as.factor(muni$bad_driver)
+```
+
+Immediately I see that average_distance_per_stop and average_number_of_stops_per_day are weird!! The min of average_number_of_stops is neg and since when can the average number of stops per day be so massive??
+So let's see which instances are funky
+
+```{r funky instances}
+funky_dist <- muni %>% filter(average_distance_per_stop <0)
+funky_stops <- muni %>% filter(average_number_of_stops_per_day > 700)
+
+print(funky_stops)
+print(funky_dist)
+```
+
+So I should go investigate:
+Vehicle ID: 90293012 (for stops) & 96544022 (for dist)
+
+```{r read funky stops}
+funky_stops_df <- read.csv("./telematics_data/final/90293012.csv")
+```
+```{r investigate funky stops}
+stops_data <- funky_stops_df %>% select(partition_date, ignitionState, odometer)
+head(stops_data)
+
+```
+
+```{r adapt funky stops}
+# Convert partition_date to Date type
+stops_data$partition_date <- as.Date(stops_data$partition_date)
+
+# Initialize variables
+previous_state <- NULL
+transition_count <- 0 
+previous_date <- as.Date("2022-01-01")
+
+j=0
+# Loop through the dataframe
+for (i in 1:nrow(stops_data)) {
+  
+  current_state <- stops_data$ignitionState[i]
+  current_date <- stops_data$partition_date[i]
+  
+  if (!is.null(previous_state) && previous_state == "ON" && current_state == "OFF") {
+    if(current_date > previous_date){
+      j = j+1
+      previous_date <- current_date
+    }
+    transition_count <- transition_count + 1
+  }
+  previous_state <- current_state
+}
+
+# Print the transition count
+cat("Number of ON to OFF transitions:", transition_count, "\n")
+
+average_stops <- transition_count/j
+cat("Average number of stops per day: ", average_stops, "\n")
+
+```
+
+```{r load funky dist }
+funky_dist_df <- read.csv("./telematics_data/final/96544022.csv")
+```
+
+```{r function for stops}
+
+calculate_nmr_stops <- function(data) {
+  # Convert partition_date to Date type
+  data$partition_date <- as.Date(data$partition_date)
+  
+  # Initialize variables
+  previous_state <- NULL
+  transition_count <- 0 
+  previous_date <- as.Date("2022-01-01")
+  
+  j <- 0
+  # Loop through the dataframe
+  for (i in 1:nrow(data)) {
+    current_state <- data$ignitionState[i]
+    current_date <- data$partition_date[i]
+    
+    if (!is.null(previous_state) && previous_state == "ON" && current_state == "OFF") {
+      if (current_date != previous_date) {
+        j <- j + 1
+        previous_date <- current_date
+      }
+      transition_count <- transition_count + 1
+    }
+    previous_state <- current_state
+  }
+  average_stops <- transition_count / j
+  
+  return(average_stops)
+}
+
+
+```
+
+
+
+```{r stops for funky dist}
+his_stops <- calculate_ignition_transitions(funky_dist_df)
+print(his_stops)
+
+```
+
+```{r function for dist per stop}
+calculate_avg_distance <- function(data) {
+  # Convert partition_date to Date type
+  data$partition_date <- as.Date(data$partition_date)
+  distance <- 0
+  counts <- 0
+  prev_state <- data$ignitionState[1]
+  prev_odo <- data$odometer[1]
+  reset_odo <- FALSE
+  
+  # Loop through the dataframe
+  for (i in 1:nrow(data)) {
+    curr_state <- data$ignitionState[i]
+    
+    if(!is.na(data$odometer[i])){
+      curr_odo <- data$odometer[i]
+    }else{
+      reset_odo <- TRUE
+      prev_odo <- 0
+      curr_odo <- 0
+    }
+    
+    
+    if(curr_state == "OFF" && prev_state == "ON"){
+      counts <- counts + 1
+      if(curr_odo > prev_odo && !reset_odo){
+        travel <- curr_odo - prev_odo
+        distance <- distance + travel
+        prev_odo <- curr_odo
+      }else if(prev_odo > curr_odo && reset_odo){
+        reset_odo <- FALSE
+        distance <- distance + curr_odo
+        prev_odo <- curr_odo
+      }
+    }
+    prev_state <- curr_state
+  }
+  avg_distance <- distance/counts
+  
+  return(avg_distance)
+}
+```
+
+Calculating distances:
+```{r calculating his distance}
+his_dist_avg <- calculate_total_distance(funky_dist_df)
+print(his_dist_avg)
+his_dist_avg2 <- calculate_total_distance(funky_stops_df)
+print(his_dist_avg2)
+```
+```{r redoing bigboi}
+# Set the directory path where your files are located
+directory_path <- "./telematics_data/final/"
+
+# List all the files in the directory with the desired extension (e.g., .csv)
+file_names <- list.files(path = directory_path, pattern = "\\.csv$", full.names = TRUE)
+
+# Initialize an empty list to store data frames
+vehicle_dfs <- list()
+
+num_rows <- 106
+bigboi <- data.frame(
+  VehicleID = numeric(num_rows),
+  OverSpeed = numeric(num_rows),
+  GpsLostCount = numeric(num_rows),
+  TelematicsOffCount = numeric(num_rows),
+  NormalBraking = numeric(num_rows),
+  EmergencyBraking = numeric(num_rows),
+  HarshBraking = numeric(num_rows),
+  IdleRatio = numeric(num_rows),
+  NumberOfClaims = numeric(num_rows),
+  TotalClaimsCost = numeric(num_rows),
+  AverageNmrStopsPerDay = numeric(num_rows),
+  AverageDistPerStop = numeric(num_rows)
+)
+for (j in 1:min(num_rows, length(file_names))) {
+    df <- read.csv(file_names[j])  # Adjust read function based on your file format
+    vehicle_dfs[[file_names[j]]] = df
+}
+```
+
+```{r go through dfs}
+for(j in 1:106){
+  df <- vehicle_dfs[[j]]
+  bigboi$VehicleID[j] <- df$vehicleid[1]
+  dist <- calculate_avg_distance(df)
+  bigboi$AverageDistPerStop[j] <- dist
+  bigboi$AverageNmrStopsPerDay[j] <- calculate_nmr_stops(df)
+}
+
+```
+
+```{r cardinality of date}
+nmr_days <- funky_dist_df %>% select(partition_date) %>% unique()
+```
+
+```{r looking at Nan}
+bigboi %>% select(AverageNmrStopsPerDay, AverageDistPerStop) %>%
+ summarise_all(~ mean(is.na(.)) * 100) %>%
+  gather(variable, missing_percentage)
+bigboi %>% select(AverageNmrStopsPerDay, AverageDistPerStop, VehicleID) %>%  filter(is.na(AverageNmrStopsPerDay) | is.na(AverageDistPerStop))
+```
+```{r why are they nana}
+for(j in 1:106){
+  df <- vehicle_dfs[[j]]
+  if(df$vehicleid[1] %in% c(139599033, 165492524, 203444726)){
+    print(df$vehicleid[1])
+    print(df %>% select(odometer, ignitionState) %>% summary())
+  }
+}
+
+```
+
+Ok, they are Nan because they had broken odometers. So, let's call them 0 to indicate them being weird.
+
+```{r looking at new dist of avg dist and avg stops}
+bigboi <- bigboi %>% mutate(AverageNmrStopsPerDay = ifelse(is.nan(AverageNmrStopsPerDay), 0, AverageNmrStopsPerDay), AverageDistPerStop = ifelse(is.nan(AverageDistPerStop), 0, AverageDistPerStop))
+bigboi %>% ggplot(aes(x=AverageDistPerStop)) + geom_histogram(binwidth=5000, fill="lightblue", color="black") + labs(title = "Average distance per stop density", x="Average distance per stop (per 5000m)", y="Frequency")
+bigboi %>% ggplot(aes(x=AverageNmrStopsPerDay)) + geom_histogram(binwidth=1, fill="lightblue", color="black") + labs(title = "Average number of stops per day density", x="Average nmr of stops per day", y="Frequency")
+
+```
+
+# Adding the claims data again
+```{r load claims data}
+claims <- read.csv("./claims_data.csv")
+
+```
+```{r adding claims data}
+for (j in 1:109) {
+  for (i in 1:106) {
+    if (claims[j, "vehicleid"] == bigboi[i, "VehicleID"]) {
+      bigboi[i, "TotalClaimsCost"] <- claims[j, "total.claims.cost"]
+      bigboi[i, "NumberOfClaims"] <- claims[j, "number.of.claims"]
+      if(bigboi[i, "NumberOfClaims"]==0){
+        bigboi[i, "TotalClaimsCost"] <- 0
+      }
+    }
+  }
+}
+```
+
+```{r add drivers}
+for (j in 1:105) {
+  for (i in 1:106) {
+    if (drivers[j, "vehicleid"] == bigboi[i, "VehicleID"]) {
+      bigboi[i, "GpsLostCount"] <- drivers[j, "gps_lost_count"]
+      bigboi[i, "TelematicsOffCount"] <- drivers[j, "telematics_off_count"]
+      bigboi[i, "NormalBraking"] <- drivers[j, "normal_braking"]
+      bigboi[i, "EmergencyBraking"] <- drivers[j, "emergency_braking"]
+      bigboi[i, "HarshBraking"] <- drivers[j, "harsh_braking"]
+      bigboi[i, "IdleRatio"] <- drivers[j, "idle_ratio"]
+      bigboi[i, "OverSpeed"] <- drivers[j, "overSpeed"]
+      bigboi[i, "CriticalBraking"] <- drivers[j, "critical_braking"]
+    }
+  }
+}
+```
+```{r ordering bigboi}
+bigboi <- bigboi %>% select(VehicleID, TotalClaimsCost, NumberOfClaims, OverSpeed, IdleRatio, GpsLostCount, TelematicsOffCount, AverageNmrStopsPerDay, AverageDistPerStop, EmergencyBraking,NormalBraking, HarshBraking, CriticalBraking)
+bigboi <- bigboi %>% mutate(CriticalBraking = ifelse(is.nan(CriticalBraking), 0, CriticalBraking))
+
+
+```
+
+```{r write to csv}
+write.csv(bigboi, "drivers_min_bad_driver.csv", row.names=FALSE)
+```
+
+```{r check csv}
+check <- read.csv("./our_data/drivers_min_bad_driver.csv")
+```
