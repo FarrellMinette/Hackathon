@@ -170,12 +170,34 @@ def insert_classified_time_of_day():
         for row in results:
             print("Row:", row)
 
+def insert_average_nmr_stops_per_day():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers_copy` ADD COLUMN IF NOT EXISTS NmrOfStops INT64""")
+    table_names = select_table_names()
+    for table_name in table_names:
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers_copy` AS d
+                            SET NmrOfStops = (
+                                SELECT COUNT(*) 
+                                FROM (
+                                    SELECT
+                                        timestamp,
+                                        ignitionState,
+                                        LAG(ignitionState, 1, '') OVER (PARTITION BY vehicleid ORDER BY timestamp) AS prev_ignitionState
+                                    FROM
+                                        `{project_id}.{data}.{table_name}`
+                                ) subquery
+                                WHERE d.vehicleid = subquery.vehicleid AND d.timestamp = subquery.timestamp AND d.ignitionState = 'ON' AND subquery.prev_ignitionState <> 'ON'
+                            );
+                            """)  
+    for row in results:
+            print("Row:", row)
 
-create_driver()
-insert_vehicleid()
-alter_driver_overspeed()
-insert_over_speed_limit()
-alter_driver_claims_drop()
-alter_driver_claims()
-insert_claims()
-insert_classified_time_of_day()
+if __name__ == "__main__":
+    # create_driver()
+    # insert_vehicleid()
+    # alter_driver_overspeed()
+    # insert_over_speed_limit()
+    # alter_driver_claims_drop()
+    # alter_driver_claims()
+    # insert_claims()
+    # insert_classified_time_of_day()
+    insert_average_nmr_stops_per_day()
