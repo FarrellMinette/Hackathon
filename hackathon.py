@@ -191,6 +191,20 @@ def insert_average_nmr_stops_per_day():
     for row in results:
             print("Row:", row)
 
+def insert_classified_area():
+    run_sql(f"""Alter table `{project_id}.{tables}.drivers` ADD COLUMN IF NOT EXISTS dangerousAreas INT64""")
+    table_names = select_table_names()
+    for table_name in table_names:
+        results = run_sql(f"""UPDATE `{project_id}.{tables}.drivers`
+                            SET dangerousAreas = (
+                            SELECT COUNT(*) 
+                            FROM `{project_id}.{data}.{table_name}`
+                            WHERE MP_NAME IN ('Nyanga', 'Khayelitsha', 'Delft', 'Mitchells Plain', 'Langa', 'Gugulethu', 'Manenberg', 'Bishop Lavis', 'Hanover park')
+                            )
+                            WHERE vehicleid = {table_name};
+                        """)
+
+
 if __name__ == "__main__":
     # create_driver()
     # insert_vehicleid()
