@@ -1,36 +1,38 @@
+from sklearn.cluster import KMeans
+from pandas.plotting import parallel_coordinates
 import numpy as np
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 
-# Load normalized data from CSV into a pandas DataFrame
-df_normalized = pd.read_csv("normalized_drivers.csv")
+# Load standardized data from CSV into a pandas DataFrame
+df_standardized = pd.read_csv("stand_norm_drivers.csv")
 
-# Drop the 'VehicleID' column if it exists (assuming it's the first column)
-if "VehicleID" in df_normalized.columns:
-    df_normalized = df_normalized.drop(columns=["VehicleID"])
+# Perform K-means clustering with k=6
+k = 3
+kmeans = KMeans(n_clusters=k, random_state=42)
+df_standardized["cluster"] = kmeans.fit_predict(df_standardized)
 
-# Create an array of k values to test
-k_values = range(1, 11)  # Test k from 1 to 10
+# Set up the figure and create the parallel coordinate plot
+plt.figure(figsize=(12, 6))
+parallel_coordinates(
+    df_standardized,
+    "cluster",
+    color=("#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b"),
+)
 
-# Initialize an empty list to store the within-cluster sum of squares (inertia) for each k
-inertia_values = []
-
-# Perform K-means clustering for each value of k
-for k in k_values:
-    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-    kmeans.fit(df_normalized)
-    inertia_values.append(kmeans.inertia_)
-
-# Plot the within-cluster sum of squares (inertia) against different values of k
-plt.plot(k_values, inertia_values, marker="o")
-plt.title("Elbow Method for Optimal k")
-plt.xlabel("Number of Clusters (k)")
-plt.ylabel("Within-Cluster Sum of Squares (Inertia)")
-plt.xticks(k_values)
+# Add legend and adjust layout
+plt.legend(title="Cluster")
+plt.title(f"Parallel Coordinate Plot of Clusters (k={k})")
+plt.xlabel("Features")
+plt.ylabel("Standardized Values")
+plt.xticks(rotation=45)
 plt.tight_layout()
 
-# Save the plot as an image file
-plot_filename = "kmeans_elbow_plot.png"
+output_directory = "output_plots/"
+combined_image_filename = os.path.join(output_directory, f"{k}_parallel_coordinate")
+
+plot_filename = combined_image_filename
 plt.savefig(plot_filename)
-plt.close()  # Close the figure to free up memory
+plt.close()  #
